@@ -8,7 +8,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adam, SGD
 from keras.utils import np_utils
 from imutils import paths
 
@@ -19,7 +19,7 @@ import cv2
 
 # construct the hax
 def main(args):
-    INIT_LR = 1e-4
+    INIT_LR = 5e-4
     BS = 16
     EPOCHS = 50
     IMG_SIZE = (128, 128)
