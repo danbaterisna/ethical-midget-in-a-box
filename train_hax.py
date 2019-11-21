@@ -21,7 +21,7 @@ import cv2
 def main(args):
     INIT_LR = 5e-4
     BS = 16
-    EPOCHS = 50
+    EPOCHS = 1
     IMG_SIZE = (128, 128)
 
 #    imagePaths = list(paths.list_images(args.dataset))
@@ -58,9 +58,9 @@ def main(args):
     # adjust numbers appropriately
     print("!! loading filenames...")
     filename_ds = tf.data.Dataset.list_files(os.path.join(args.dataset, "*/*.jpg"))
-    filename_train_ds = filename_ds.take(6000)
-    filename_val_ds = filename_ds.skip(6000).take(1000)
-    filename_test_ds = filename_ds.skip(7000)
+    filename_train_ds = filename_ds.take(4000)
+    filename_val_ds = filename_ds.skip(4000).take(1000)
+    filename_test_ds = filename_ds.skip(5000)
 
     def extract_img(img):
         img = tf.image.decode_jpeg(img, channels=3)
@@ -108,13 +108,16 @@ def main(args):
     # results of this are too high; check data hygiene
     print("!! evaluating network [TODO]...")
     #predictions = model.predict(labeled_test_ds, batch_size=BS)
+    predictions = model.predict(labeled_test_ds)
+    answers = predictions.argmax(axis=1)
+    print(answers)
     #print(classification_report(testY.argmax(axis=1), predictions.argmax(axis=1), target_names = le.classes_))
 
     print(f"!! saving network...")
     model.save(args.model)
 
-    with open(args.labels, "wb") as f:
-        f.write(pickle.dumps(le))
+    #with open(args.labels, "wb") as f:
+    #    f.write(pickle.dumps(le))
 
 
 # argparse hax
