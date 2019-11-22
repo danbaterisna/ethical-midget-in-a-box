@@ -1,0 +1,9 @@
+# Ethical Midget in a Box
+
+What each file does:
+
+* `deep_learning_hax.py` contains the details of the model, including all layers.
+* `train_hax.py` contains the training script. pass it the `-h` file for parameters.
+* `main.py` is a prototype that uses the model trained by `train_hax.py` to detet fake faces.
+
+Run `train_hax` on the dataset, followed by `main.py`
