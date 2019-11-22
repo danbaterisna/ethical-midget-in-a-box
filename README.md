@@ -6,4 +6,6 @@ What each file does:
 * `train_hax.py` contains the training script. pass it the `-h` file for parameters.
 * `main.py` is a prototype that uses the model trained by `train_hax.py` to detet fake faces.
 
-Run `train_hax` on the dataset, followed by `main.py`
+Run `train_hax` on the dataset, followed by `main.py`.
+
+Run `evaluator.py` on a test dataset to get a confusion matrix.
