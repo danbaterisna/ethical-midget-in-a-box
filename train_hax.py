@@ -21,7 +21,7 @@ import cv2
 def main(args):
     INIT_LR = 5e-4
     BS = 16
-    EPOCHS = 1
+    EPOCHS = 50
     IMG_SIZE = (128, 128)
 
 #    imagePaths = list(paths.list_images(args.dataset))
@@ -58,9 +58,8 @@ def main(args):
     # adjust numbers appropriately
     print("!! loading filenames...")
     filename_ds = tf.data.Dataset.list_files(os.path.join(args.dataset, "*/*.jpg"))
-    filename_train_ds = filename_ds.take(4000)
-    filename_val_ds = filename_ds.skip(4000).take(1000)
-    filename_test_ds = filename_ds.skip(5000)
+    filename_train_ds = filename_ds.take(6000)
+    filename_val_ds = filename_ds.skip(6000)
 
     def extract_img(img):
         img = tf.image.decode_jpeg(img, channels=3)
@@ -84,11 +83,9 @@ def main(args):
         return ds
 
     print("!! loading dataset")
-    labeled_test_ds = filename_test_ds.map(process_path)
     labeled_train_ds = filename_train_ds.map(process_path)
     labeled_val_ds = filename_val_ds.map(process_path)
 
-    labeled_test_ds = prepare(labeled_test_ds)
     labeled_train_ds = prepare(labeled_train_ds)
     labeled_val_ds = prepare(labeled_val_ds)
 
@@ -105,13 +102,6 @@ def main(args):
            validation_data=labeled_val_ds,
            epochs=EPOCHS)
 
-    # results of this are too high; check data hygiene
-    print("!! evaluating network [TODO]...")
-    #predictions = model.predict(labeled_test_ds, batch_size=BS)
-    predictions = model.predict(labeled_test_ds)
-    answers = predictions.argmax(axis=1)
-    print(answers)
-    #print(classification_report(testY.argmax(axis=1), predictions.argmax(axis=1), target_names = le.classes_))
 
     print(f"!! saving network...")
     model.save(args.model)
@@ -124,8 +114,6 @@ def main(args):
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--dataset", required=True, help="path to dataset")
 parser.add_argument("-m", "--model", required=True, type=str, help="path to model file")
-parser.add_argument("-l", "--labels", required=True, type=str, help="path to label encoder")
-parser.add_argument("-p", "--plot", type=str, default="plot.png", help="path to output loss/accuracy plot")
 
 args = parser.parse_args()
 main(args)
