@@ -16,10 +16,12 @@ liveModel = load_model(args.model)
 
 def isLive(img):
     img = cv2.resize(img, (128, 128))
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img = img.astype('float') / 255.0
     img = img_to_array(img)
     img = np.expand_dims(img, axis = 0)
-    return np.argmax(liveModel.predict(img)[0])
+    results = liveModel.predict(img)
+    return np.argmax(results[0])
 
 # get a listing of all image filenames
 filesToTest = [f for f in glob.glob(args.dataset + "/real/*.*")] + [f for f in glob.glob(args.dataset + "/fake/*.*")]

@@ -1,16 +1,21 @@
 # A script for fine-tuning the given model.
 
 import cv2
+import glob
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import load_model, Model
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.image import img_to_array
+import random
 import argparse, os
 
 # parse the arguments
 
 parser = argparse.ArgumentParser(description = "A script for fine-tuning the given model.")
 parser.add_argument("dataset", type=str, help="A path to the ds to use for fine-tuning.")
+parser.add_argument("test_set", type=str, help="A path to the ds to use for testing.")
 parser.add_argument("model", type=str, help="File name of pre-trained model.")
 parser.add_argument("to_save", type=str, help="File name to save the model to.")
 parser.add_argument("freeze_count", type=int, help="Number of bottom layers to freeze.")
@@ -21,13 +26,13 @@ args = parser.parse_args()
 print("!! loading model...")
 pretrained_raw = load_model(args.model)
 
+pt_second = pretrained_raw.layers[-2].output
+newOutput = Dense(2, activation="softmax", name="predictions_new")(pt_second)
+
+pretrained = Model(inputs = pretrained_raw.input, outputs=newOutput)
+
 # freeze first few layers
 print("!! configuring for fine-tuning...")
-
-pt_second = pretrained_raw.layers[-2].output
-newOutput = Dense(2, activation="sigmoid", name="predictions_new")(pt_second)
-
-pretrained = Model(inputs=pretrained_raw.input, outputs=newOutput)
 
 for layer in pretrained.layers[:args.freeze_count]:
     layer.trainable = False
@@ -36,7 +41,7 @@ for layer in pretrained.layers[:args.freeze_count]:
 
 print("!! compiling model...")
 INIT_LR = 1e-4
-EPOCHS = 1
+EPOCHS = 50
 BATCH_SIZE = 16
 IMG_SIZE = (128, 128)
 
@@ -46,44 +51,51 @@ pretrained.compile(optimizer=opt, loss="binary_crossentropy", metrics=["accuracy
 # load the dataset
 
 print("!! loading dataset...")
-filename_ds = tf.data.Dataset.list_files(os.path.join(args.dataset, "*/*.jpg"))
-filename_train_ds = filename_ds.take(3000)
-filename_val_ds = filename_ds.skip(3000)
 
-def extract_img(img):
-    img = tf.image.decode_jpeg(img, channels=3)
-    img = tf.image.convert_image_dtype(img, tf.float32)
-    img = tf.image.resize(img, [IMG_SIZE[0], IMG_SIZE[1]])
-    return img
+def extractDataset(path):
 
-def get_label(fileName):
-    parts = tf.strings.split(fileName, os.path.sep, result_type="RaggedTensor")
-    return parts[-2] == "real"
+    fileNameList = [f for f in glob.glob(path + "/real/*.*")] + [f for f in glob.glob(path + "/fake/*.*")]
+    random.shuffle(fileNameList)
 
-def process_path(fileName):
-    img = tf.io.read_file(fileName)
-    img = extract_img(img)
-    label = get_label(fileName)
-    return img, label
+    def fetchImage(fileName):
+        img = cv2.imread(fileName)
+        img = cv2.resize(img, (128, 128))
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        return img
 
-def prepare(ds):
-    ds = ds.shuffle(buffer_size = 1000)
-    ds = ds.batch(BATCH_SIZE)
-    return ds
+    trueState = [[fileName.split(os.path.sep)[-2] == "real", fileName.split(os.path.sep)[-2] == "fake"] for fileName in fileNameList]
+    imgData = [fetchImage(fileName) for fileName in fileNameList]
+    print("!! ds loaded, now rescaling...")
 
-labeled_train_ds = filename_train_ds.map(process_path)
-labeled_val_ds = filename_val_ds.map(process_path)
+    #print("!! DEBUGGING: checking labels:")
 
-labeled_train_ds = prepare(labeled_train_ds)
-labeled_val_ds = prepare(labeled_val_ds)
+    #for fileName, img, label in zip(fileNameList, imgData, trueState):
+    #    cv2.imshow(fileName + str(label), img)
+    #    cv2.waitKey(0)
+    #    cv2.destroyAllWindows()
+
+    imgData = np.array(imgData, dtype = 'float') / 255.0
+    trueState = np.array(trueState, dtype = 'float')
+
+    print(trueState)
+
+    return (fileNameList, imgData, trueState)
 
 # run training
 
-print("!! fine-tuning dataset...")
-pretrained.fit(labeled_train_ds,
-    epochs = EPOCHS,
-    validation_data = labeled_val_ds)
+trainFileNames, trainImages, trainTruth = extractDataset(args.dataset)
 
+print("!! fine-tuning dataset...")
+pretrained.fit(trainImages, trainTruth, batch_size = BATCH_SIZE,
+    epochs = EPOCHS)
+
+# run testing 
+
+print("!! testing on test set...")
+testFiles, testImages, testTruth = extractDataset(args.test_set)
+print(len(testTruth), "samples loaded")
+results = pretrained.evaluate(testImages, testTruth, batch_size = BATCH_SIZE)
+print("evaluator:", results)
 # save the model
 
 print("!! saving model...")
