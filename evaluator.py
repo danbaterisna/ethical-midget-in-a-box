@@ -21,7 +21,7 @@ def isLive(img):
     img = img_to_array(img)
     img = np.expand_dims(img, axis = 0)
     results = liveModel.predict(img)
-    return np.argmax(results[0])
+    return np.argmax(results[0]) == 0
 
 # get a listing of all image filenames
 filesToTest = [f for f in glob.glob(args.dataset + "/real/*.*")] + [f for f in glob.glob(args.dataset + "/fake/*.*")]
