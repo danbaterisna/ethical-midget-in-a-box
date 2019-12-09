@@ -1,2 +1,4 @@
 dataset/
 face_detector/
+local_train/
+local_test/

@@ -69,7 +69,7 @@ def main(args):
 
     def get_label(fileName):
         parts = tf.strings.split(fileName, os.path.sep, result_type="RaggedTensor")
-        return parts[-2] == "real"
+        return [parts[-2] == "real", parts[-2] == "fake"]
 
     def process_path(fileName):
         img = tf.io.read_file(fileName)
