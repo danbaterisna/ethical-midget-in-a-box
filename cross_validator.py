@@ -24,7 +24,7 @@ parser.add_argument("freeze_count", type=int, help="Fine-tuning parameter.")
 
 args = parser.parse_args()
 
-def conductRound(trainSet, testSet):
+def conductRound(trainX, trainY, testX, testY):
     # load model
     print("!! loading model...")
     pretrained_raw = load_model(args.model)
@@ -43,17 +43,17 @@ def conductRound(trainSet, testSet):
     print("!! compiling model...")
 
     INIT_LR = 1e-4
-    EPOCHS = 50
+    EPOCHS = 1
     BATCH_SIZE = 16
     IMG_SIZE = (128, 128)
 
     opt = Adam(lr = INIT_LR, decay = INIT_LR / EPOCHS)
     pretrained.compile(optimizer=opt, loss="binary_crossentropy", metrics=["accuracy"])
 
-    pretrained.fit(trainSet, batch_size = BATCH_SIZE, epochs = EPOCHS)
+    pretrained.fit(trainX, trainY, batch_size = BATCH_SIZE, epochs = EPOCHS)
 
     print("!! finished training. now evaluating...")
-    results = pretrained.evaluate(testSet, batch_size = BATCH_SIZE)
+    results = pretrained.evaluate(testX, testY, batch_size = BATCH_SIZE)
 
     print("!! results:", results)
 
@@ -83,13 +83,13 @@ print("!!!! ds loaded, now rescaling...")
 imgData = np.array(imgData, dtype = 'float') / 255.0
 trueState = np.array(trueState, dtype = 'float')
 
-finalData = np.array(list(zip(imgData, trueState)))
+dataIndices = list(range(len(imgData)))
 
 kfold = KFold(args.k, True, 42)
 currentRound = 1
-for train, test in kfold.split(finalData):
+for trainI, testI in kfold.split(dataIndices):
     print(f"!!!! running cv round {currentRound}/{args.k}")
-    conductRound(train, test)
+    conductRound(imgData[trainI], trueState[trainI], imgData[testI], trueState[testI])
     currentRound += 1
 
 
