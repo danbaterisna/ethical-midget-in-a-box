@@ -8,6 +8,7 @@ from tensorflow.keras.models import load_model, Model
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.preprocessing.image import img_to_array
+from data_handler import extractDataset
 import random
 import argparse, os
 
@@ -41,7 +42,7 @@ for layer in pretrained.layers[:args.freeze_count]:
 
 print("!! compiling model...")
 INIT_LR = 1e-4
-EPOCHS = 50 
+EPOCHS = 1 
 BATCH_SIZE = 16
 IMG_SIZE = (128, 128)
 
@@ -52,49 +53,20 @@ pretrained.compile(optimizer=opt, loss="binary_crossentropy", metrics=["accuracy
 
 print("!! loading dataset...")
 
-def extractDataset(path):
-
-    fileNameList = [f for f in glob.glob(path + "/real/*.*")] + [f for f in glob.glob(path + "/fake/*.*")]
-    random.shuffle(fileNameList)
-
-    def fetchImage(fileName):
-        img = cv2.imread(fileName)
-        img = cv2.resize(img, (128, 128))
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        return img
-
-    trueState = [[fileName.split(os.path.sep)[-2] == "real", fileName.split(os.path.sep)[-2] == "fake"] for fileName in fileNameList]
-    imgData = [fetchImage(fileName) for fileName in fileNameList]
-    print("!! ds loaded, now rescaling...")
-
-    #print("!! DEBUGGING: checking labels:")
-
-    #for fileName, img, label in zip(fileNameList, imgData, trueState):
-    #    cv2.imshow(fileName + str(label), img)
-    #    cv2.waitKey(0)
-    #    cv2.destroyAllWindows()
-
-    imgData = np.array(imgData, dtype = 'float') / 255.0
-    trueState = np.array(trueState, dtype = 'float')
-
-    print(trueState)
-
-    return (fileNameList, imgData, trueState)
-
 # run training
 
-trainFileNames, trainImages, trainTruth = extractDataset(args.dataset)
+trainFileNames, trainSet = extractDataset(args.dataset, BATCH_SIZE, IMG_SIZE[0], IMG_SIZE[1])
 
 print("!! fine-tuning dataset...")
-pretrained.fit(trainImages, trainTruth, batch_size = BATCH_SIZE,
+pretrained.fit(trainSet,
     epochs = EPOCHS)
 
 # run testing 
 
 print("!! testing on test set...")
-testFiles, testImages, testTruth = extractDataset(args.test_set)
-print(len(testTruth), "samples loaded")
-results = pretrained.evaluate(testImages, testTruth, batch_size = BATCH_SIZE)
+testFiles, testSet = extractDataset(args.test_set, BATCH_SIZE, IMG_SIZE[0], IMG_SIZE[1])
+print(len(testFiles), "samples loaded")
+results = pretrained.evaluate(testSet)
 print("evaluator:", results)
 # save the model
 

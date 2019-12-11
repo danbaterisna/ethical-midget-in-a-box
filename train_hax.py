@@ -68,7 +68,7 @@ def main(args):
         return img
 
     def get_label(fileName):
-        parts = tf.strings.split(fileName, os.path.sep, result_type="RaggedTensor")
+        parts = tf.strings.split(fileName, os.path.sep)
         return [parts[-2] == "real", parts[-2] == "fake"]
 
     def process_path(fileName):
