@@ -42,7 +42,7 @@ for layer in pretrained.layers[:args.freeze_count]:
 
 print("!! compiling model...")
 INIT_LR = 1e-4
-EPOCHS = 1 
+EPOCHS = 50
 BATCH_SIZE = 16
 IMG_SIZE = (128, 128)
 
