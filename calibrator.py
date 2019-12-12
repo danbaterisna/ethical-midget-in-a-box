@@ -56,6 +56,7 @@ print("!! loading dataset...")
 # run training
 
 trainFileNames, trainSet = extractDataset(args.dataset, BATCH_SIZE, IMG_SIZE[0], IMG_SIZE[1])
+print(trainSet)
 
 print("!! fine-tuning dataset...")
 pretrained.fit(trainSet,

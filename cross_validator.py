@@ -15,6 +15,7 @@ from tensorflow.keras.preprocessing.image import img_to_array
 from sklearn.model_selection import KFold
 import random
 import argparse, os
+from data_handler import extractDataset, filenamesToDataset
 
 parser = argparse.ArgumentParser(description = "A script to conduct cross-validation.")
 parser.add_argument("dataset", type=str, help="Path to the dataset")
@@ -24,7 +25,18 @@ parser.add_argument("freeze_count", type=int, help="Fine-tuning parameter.")
 
 args = parser.parse_args()
 
-def conductRound(trainX, trainY, testX, testY):
+def prepareHackFolder(fileNameList, hackFolderName):
+    os.system(f"mkdir {hackFolderName}/; mkdir {hackFolderName}/real; mkdir {hackFolderName}/fake")
+    for fileName in fileNameList:
+        #get the last part of the 
+        if fileName.split(os.path.sep)[-2] == "real":
+            os.system(f"cp {fileName} {hackFolderName}/real/")
+        else:
+            os.system(f"cp {fileName} {hackFolderName}/fake/")
+
+
+
+def conductRound(trainFiles, testFiles):
     # load model
     print("!! loading model...")
     pretrained_raw = load_model(args.model)
@@ -43,17 +55,34 @@ def conductRound(trainX, trainY, testX, testY):
     print("!! compiling model...")
 
     INIT_LR = 1e-4
-    EPOCHS = 1
+    EPOCHS = 50
     BATCH_SIZE = 16
     IMG_SIZE = (128, 128)
+    HF_NAME = "HAX_currentRound/"
+
+    print("!! extracting DS")
+
+    prepareHackFolder(trainFiles, HF_NAME)
+    trainFiles, trainDS = extractDataset(HF_NAME, BATCH_SIZE, IMG_SIZE[0], IMG_SIZE[1])
+
+    print("DEBUG: ")
+    print(trainDS)
 
     opt = Adam(lr = INIT_LR, decay = INIT_LR / EPOCHS)
     pretrained.compile(optimizer=opt, loss="binary_crossentropy", metrics=["accuracy"])
 
-    pretrained.fit(trainX, trainY, batch_size = BATCH_SIZE, epochs = EPOCHS)
+    pretrained.fit(trainDS, epochs = EPOCHS)
+
+    os.system(f"rm -r {HF_NAME}")
 
     print("!! finished training. now evaluating...")
-    results = pretrained.evaluate(testX, testY, batch_size = BATCH_SIZE)
+
+    prepareHackFolder(testFiles, HF_NAME)
+
+    testFiles, testDS = extractDataset(HF_NAME, BATCH_SIZE, IMG_SIZE[0], IMG_SIZE[1])
+    results = pretrained.evaluate(testDS)
+
+    os.system(f"rm -r {HF_NAME}")
 
     print("!! results:", results)
 
@@ -61,35 +90,16 @@ print("!!!! loading dataset...")
 
 
 fileNameList = [f for f in glob.glob(args.dataset + "/real/*.*")] + [f for f in glob.glob(args.dataset + "/fake/*.*")]
+fileNameList = np.array(fileNameList)
 random.shuffle(fileNameList)
 
-def fetchImage(fileName):
-    img = cv2.imread(fileName)
-    img = cv2.resize(img, (128, 128))
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    return img
-
-trueState = [[fileName.split(os.path.sep)[-2] == "real", fileName.split(os.path.sep)[-2] == "fake"] for fileName in fileNameList]
-imgData = [fetchImage(fileName) for fileName in fileNameList]
-print("!!!! ds loaded, now rescaling...")
-
-#print("!! DEBUGGING: checking labels:")
-
-#for fileName, img, label in zip(fileNameList, imgData, trueState):
-#    cv2.imshow(fileName + str(label), img)
-#    cv2.waitKey(0)
-#    cv2.destroyAllWindows()
-
-imgData = np.array(imgData, dtype = 'float') / 255.0
-trueState = np.array(trueState, dtype = 'float')
-
-dataIndices = list(range(len(imgData)))
+dataIndices = list(range(len(fileNameList)))
 
 kfold = KFold(args.k, True, 42)
 currentRound = 1
 for trainI, testI in kfold.split(dataIndices):
     print(f"!!!! running cv round {currentRound}/{args.k}")
-    conductRound(imgData[trainI], trueState[trainI], imgData[testI], trueState[testI])
+    conductRound((fileNameList[trainI]), (fileNameList[testI]))
     currentRound += 1
 
 
